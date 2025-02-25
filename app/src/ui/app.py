@@ -29,24 +29,13 @@ sys.path.append(str(src_path))
 # Get secrets from Hugging Face Space
 def get_secrets():
     """Get secrets from Hugging Face Space or local environment."""
-    if os.environ.get("SPACE_ID"):
-        # We're in a Hugging Face Space
-        return {
-            "OPENAI_API_KEY": st.secrets["OPENAI_API_KEY"],
-            "TAVILY_API_KEY": st.secrets.get("TAVILY_API_KEY"),
-            "LANGCHAIN_API_KEY": st.secrets.get("LANGCHAIN_API_KEY"),
-            "LANGCHAIN_PROJECT": st.secrets.get("LANGCHAIN_PROJECT", "GridGuide"),
-            "LANGCHAIN_TRACING_V2": st.secrets.get("LANGCHAIN_TRACING_V2", "true"),
-        }
-    else:
-        # We're running locally, use environment variables
-        return {
-            "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY"),
-            "TAVILY_API_KEY": os.environ.get("TAVILY_API_KEY"),
-            "LANGCHAIN_API_KEY": os.environ.get("LANGCHAIN_API_KEY"),
-            "LANGCHAIN_PROJECT": os.environ.get("LANGCHAIN_PROJECT", "GridGuide"),
-            "LANGCHAIN_TRACING_V2": os.environ.get("LANGCHAIN_TRACING_V2", "true"),
-        }
+
+    return {
+        "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
+        "LANGCHAIN_API_KEY": os.getenv("LANGCHAIN_API_KEY"),
+        "LANGCHAIN_PROJECT": os.getenv("LANGCHAIN_PROJECT", "grid-code-assistant"),
+        "LANGCHAIN_TRACING_V2": os.getenv("LANGCHAIN_TRACING_V2", "true"),
+    }
 
 
 # Set up environment variables from secrets
