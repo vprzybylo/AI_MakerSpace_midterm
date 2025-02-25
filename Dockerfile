@@ -18,4 +18,4 @@ COPY --chown=user . .
 ENV PYTHONPATH=/app
 
 # Run streamlit on port 7860 for Hugging Face Spaces
-CMD ["streamlit", "run", "src/ui/app.py", "--server.port", "7860", "--server.address", "0.0.0.0"]
+CMD ["streamlit", "run", "app.py", "--server.port", "7860", "--server.address", "0.0.0.0"]
