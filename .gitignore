@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.DS_Store
+data/processed/
+*.csv
+# Ignore other PDFs and binary files except grid_code.pdf
+*.pdf
+!data/raw/grid_code.pdf
+*.docx

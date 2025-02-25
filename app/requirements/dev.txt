@@ -1,0 +1,13 @@
+langchain-community==0.3.14
+langchain-openai==0.2.14
+langchain-qdrant>=0.2.0
+openai>=1.6.1
+qdrant-client>=1.6.4
+ragas==0.2.10
+streamlit==1.29.0
+python-dotenv==1.0.0
+pypdf==3.17.1
+rich>=13.7.0
+rapidfuzz>=3.6.1
+tenacity>=8.2.3 
+sentence-transformers==3.4.1
