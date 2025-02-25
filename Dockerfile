@@ -12,10 +12,10 @@ COPY --chown=user requirements.txt requirements.txt
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # Copy the app directory
-COPY --chown=user app /app
+COPY --chown=user . .
 
 # Set environment variable for Python path
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app
 
 # Run streamlit on port 7860 for Hugging Face Spaces
 CMD ["streamlit", "run", "src/ui/app.py", "--server.port", "7860", "--server.address", "0.0.0.0"]

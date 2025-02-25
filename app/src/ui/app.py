@@ -113,7 +113,7 @@ def initialize_rag():
         return st.session_state.rag_chain
 
     # Use relative path from src directory
-    data_path = Path(__file__).parent.parent.parent / "data" / "raw" / "grid_code.pdf"
+    data_path = Path(__file__).parent.parent.parent / "app" / "data" / "raw" / "grid_code.pdf"
     if not data_path.exists():
         raise FileNotFoundError(f"PDF not found: {data_path}")
 
