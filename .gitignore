@@ -8,4 +8,5 @@ data/processed/
 *.pdf
 !data/raw/grid_code.pdf
 *.docx
-.sqlite*.sqlite
+*.sqlite
+*.json
