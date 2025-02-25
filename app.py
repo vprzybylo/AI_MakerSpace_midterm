@@ -110,12 +110,33 @@ def initialize_rag():
         logger.info("Using cached RAG chain from session state")
         return st.session_state.rag_chain
 
-    data_path = "app/data/raw/grid_code.pdf"
-    if not os.path.exists(data_path):
-        raise FileNotFoundError(f"PDF not found: {data_path}")
+    # Try multiple possible paths for the PDF
+    possible_paths = [
+        "app/data/raw/grid_code.pdf",  # Local path
+        "/app/app/data/raw/grid_code.pdf",  # Docker path
+        Path(__file__).parent
+        / "app"
+        / "data"
+        / "raw"
+        / "grid_code.pdf",  # Absolute path
+    ]
+
+    data_path = None
+    for path in possible_paths:
+        if isinstance(path, str):
+            path = Path(path)
+        if path.exists():
+            data_path = str(path)
+            logger.info(f"Found PDF at: {data_path}")
+            break
+
+    if not data_path:
+        raise FileNotFoundError(
+            f"PDF not found in any of these locations: {possible_paths}"
+        )
 
     with st.spinner("Loading Grid Code documents..."):
-        loader = GridCodeLoader(str(data_path), pages=17)
+        loader = GridCodeLoader(data_path, pages=17)
         documents = loader.load_and_split()
         logger.info(f"Loaded {len(documents)} document chunks")
 
