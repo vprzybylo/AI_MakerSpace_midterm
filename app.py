@@ -112,19 +112,16 @@ def initialize_rag():
 
     # Try multiple possible paths for the PDF
     possible_paths = [
-        "app/data/raw/grid_code.pdf",  # Local path
-        "/app/app/data/raw/grid_code.pdf",  # Docker path
-        Path(__file__).parent
-        / "app"
-        / "data"
-        / "raw"
-        / "grid_code.pdf",  # Absolute path
+        "Grid_Code.pdf",  # Base directory (local and Docker)
+        "/app/Grid_Code.pdf",  # Docker container path
+        Path(__file__).parent / "Grid_Code.pdf",  # Absolute path
     ]
 
     data_path = None
     for path in possible_paths:
         if isinstance(path, str):
             path = Path(path)
+        logger.info(f"Checking path: {path}")
         if path.exists():
             data_path = str(path)
             logger.info(f"Found PDF at: {data_path}")
