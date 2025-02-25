@@ -10,6 +10,14 @@ short_description: Field assistant for utility workers
 startup_duration_timeout: 1h
 ---
 
+# Final Submission
+
+1. GitHub: [AI_MakerSpace_midterm](https://github.com/vprzybylo/AI_MakerSpace_midterm)
+    1. Video: {link}
+        
+2. Public App link: [GridGuide on Hugging Face](https://huggingface.co/spaces/vanessaprzybylo/gridguide)
+3. Public Fine-tuned embeddings: [finetuned_arctic_ft](https://huggingface.co/vanessaprzybylo/finetuned_arctic_ft)
+
 # GridGuide: Field Assistant
 
 A comprehensive tool designed for utility field workers to access Grid Code regulations and real-time weather information, essential for safe and efficient field operations.
