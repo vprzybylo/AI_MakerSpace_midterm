@@ -13,7 +13,7 @@ startup_duration_timeout: 1h
 # Final Submission
 
 1. GitHub: [AI_MakerSpace_midterm](https://github.com/vprzybylo/AI_MakerSpace_midterm)
-    1. Video: {link}
+    1. Video: https://www.loom.com/share/b76593f490554dd0a085fe65d1e2d63a
         
 2. Public App link: [GridGuide on Hugging Face](https://huggingface.co/spaces/vanessaprzybylo/gridguide)
 3. Public Fine-tuned embeddings: [finetuned_arctic_ft](https://huggingface.co/vanessaprzybylo/finetuned_arctic_ft)
