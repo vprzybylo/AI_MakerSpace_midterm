@@ -11,8 +11,8 @@ WORKDIR /app
 COPY --chown=user requirements.txt requirements.txt
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# Copy the midterm directory contents
-COPY --chown=user midterm /app
+# Copy the app directory
+COPY --chown=user app /app
 
 # Set environment variable for Python path
 ENV PYTHONPATH=/app/src
