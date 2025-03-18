@@ -1,11 +1,14 @@
 import logging
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Annotated, TypedDict
 
+import openai
 import requests
 import streamlit as st
+from audio_recorder_streamlit import audio_recorder
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import (
     ChatPromptTemplate,
@@ -16,6 +19,7 @@ from langchain_core.prompts import (
 from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 from langgraph.graph.message import add_messages
+from PIL import Image
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -265,7 +269,8 @@ def display_weather(weather_data):
 
 
 def main():
-    st.title("GridGuide: Field Assistant")
+    image = Image.open("app/src/data/logo.png")
+    st.image(image, use_column_width=True)
 
     # Initialize if not in session state
     if "app" not in st.session_state:
@@ -273,21 +278,87 @@ def main():
         weather_tool = WeatherTool()
         st.session_state.app = create_agent_workflow(rag_chain, weather_tool)
 
-    # Create the input box
-    user_input = st.text_input("Ask about weather or the Grid Code:")
+    # Initialize session state variables
+    if "transcribed_text" not in st.session_state:
+        st.session_state.transcribed_text = ""
 
-    if user_input:
+    # Add a flag to track if input has been processed
+    if "processed_input" not in st.session_state:
+        st.session_state.processed_input = False
+
+    # Create a container for the input and audio recorder
+    input_container = st.container()
+
+    with input_container:
+        col1, col2 = st.columns([4, 1])
+
+        with col1:
+            # Use the transcribed text as the default value if available
+            user_input = st.text_input(
+                "Type your question:",
+                value=st.session_state.transcribed_text,
+                key="typed_input",
+            )
+            # Clear the transcribed text after it's been used
+            st.session_state.transcribed_text = ""
+
+        with col2:
+            audio_bytes = audio_recorder(text="Click to record", icon_size="2x")
+
+        if audio_bytes:
+            st.audio(audio_bytes, format="audio/wav")
+
+            # Save audio to a temporary file
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+                tmp_file.write(audio_bytes)
+                tmp_path = tmp_file.name
+
+            # Transcribe using Whisper API
+            try:
+                with st.spinner("Transcribing..."):
+                    client = openai.OpenAI()
+                    with open(tmp_path, "rb") as audio_file:
+                        transcript = client.audio.transcriptions.create(
+                            model="whisper-1", file=audio_file
+                        )
+
+                    # Show transcript and let the user manually submit it
+                    transcribed_text = transcript.text
+                    st.info(f"Transcribed: {transcribed_text}")
+
+                    # Create a button to use the transcription
+                    if st.button("Use this transcription"):
+                        # Set the flag to indicate this input has been processed
+                        st.session_state.processed_input = True
+
+                        with st.spinner("Processing your request..."):
+                            result = st.session_state.app.invoke(
+                                {"input": transcribed_text}
+                            )
+
+                            # Check if we have weather data in session state
+                            if "weather_data" in st.session_state:
+                                display_weather(st.session_state.weather_data)
+                                del st.session_state.weather_data
+                            else:
+                                st.write(result["output"])
+            except Exception as e:
+                st.error(f"Error transcribing audio: {e}")
+
+    # Process the input only if it hasn't been processed already and there is input
+    if user_input and not st.session_state.processed_input:
         with st.spinner("Processing your request..."):
-            # Invoke the agent executor
             result = st.session_state.app.invoke({"input": user_input})
 
             # Check if we have weather data in session state
             if "weather_data" in st.session_state:
                 display_weather(st.session_state.weather_data)
-                # Clear the weather data after displaying
                 del st.session_state.weather_data
             else:
                 st.write(result["output"])
+
+    # Reset the processed flag at the end of each run
+    st.session_state.processed_input = False
 
 
 if __name__ == "__main__":
