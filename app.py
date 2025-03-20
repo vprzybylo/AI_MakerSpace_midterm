@@ -278,34 +278,59 @@ def main():
         weather_tool = WeatherTool()
         st.session_state.app = create_agent_workflow(rag_chain, weather_tool)
 
-    # Initialize session state variables
-    if "transcribed_text" not in st.session_state:
-        st.session_state.transcribed_text = ""
+    # Initialize session state variables - keep only what's necessary
+    if "transcription" not in st.session_state:
+        st.session_state.transcription = None  # Store the current transcription
 
-    # Add a flag to track if input has been processed
-    if "processed_input" not in st.session_state:
-        st.session_state.processed_input = False
+    # Store response in session state
+    if "response" not in st.session_state:
+        st.session_state.response = None
 
-    # Create a container for the input and audio recorder
+    # Store input to be processed
+    if "process_input" not in st.session_state:
+        st.session_state.process_input = None
+
+    # Function to submit the input
+    def submit_text_input():
+        if st.session_state.typed_input:
+            st.session_state.process_input = st.session_state.typed_input
+
+    # Function to submit transcription
+    def submit_transcription():
+        st.session_state.process_input = st.session_state.transcription
+
+    # Create input area - a container for consistent spacing
     input_container = st.container()
-
     with input_container:
-        col1, col2 = st.columns([4, 1])
+        st.write("Type your question:")
+
+        # Create 3 columns: input field, send button, and mic button
+        col1, col2, col3 = st.columns([4, 1, 1])
 
         with col1:
-            # Use the transcribed text as the default value if available
+            # Text input
             user_input = st.text_input(
-                "Type your question:",
-                value=st.session_state.transcribed_text,
+                "",
                 key="typed_input",
+                label_visibility="collapsed",
+                on_change=submit_text_input,
             )
-            # Clear the transcribed text after it's been used
-            st.session_state.transcribed_text = ""
 
         with col2:
-            audio_bytes = audio_recorder(text="Click to record", icon_size="2x")
+            # Send button for text input
+            if st.button("Send"):
+                submit_text_input()
 
-        if audio_bytes:
+        with col3:
+            # Audio recorder inline with input - use default icon
+            audio_bytes = audio_recorder(text="", icon_size="2x")
+
+    # Full width container for spinner and transcription
+    feedback_container = st.container()
+
+    # Process audio if recorded
+    if audio_bytes:
+        with feedback_container:
             st.audio(audio_bytes, format="audio/wav")
 
             # Save audio to a temporary file
@@ -322,43 +347,65 @@ def main():
                             model="whisper-1", file=audio_file
                         )
 
-                    # Show transcript and let the user manually submit it
+                    # Store the transcribed text
                     transcribed_text = transcript.text
-                    st.info(f"Transcribed: {transcribed_text}")
-
-                    # Create a button to use the transcription
-                    if st.button("Use this transcription"):
-                        # Set the flag to indicate this input has been processed
-                        st.session_state.processed_input = True
-
-                        with st.spinner("Processing your request..."):
-                            result = st.session_state.app.invoke(
-                                {"input": transcribed_text}
-                            )
-
-                            # Check if we have weather data in session state
-                            if "weather_data" in st.session_state:
-                                display_weather(st.session_state.weather_data)
-                                del st.session_state.weather_data
-                            else:
-                                st.write(result["output"])
+                    if transcribed_text.strip():  # Only store if not empty
+                        st.session_state.transcription = transcribed_text
             except Exception as e:
                 st.error(f"Error transcribing audio: {e}")
 
-    # Process the input only if it hasn't been processed already and there is input
-    if user_input and not st.session_state.processed_input:
-        with st.spinner("Processing your request..."):
-            result = st.session_state.app.invoke({"input": user_input})
+    # Show transcription info box and button if we have a transcription
+    if st.session_state.transcription:
+        with feedback_container:
+            st.info(f"Transcribed: {st.session_state.transcription}")
 
-            # Check if we have weather data in session state
-            if "weather_data" in st.session_state:
-                display_weather(st.session_state.weather_data)
-                del st.session_state.weather_data
+            # Center the button
+            col1, col2, col3 = st.columns([1.5, 2, 1.5])
+            with col2:
+                # Create a button to use the transcription
+                if st.button(
+                    "Use this transcription",
+                    key="use_transcript_btn",
+                    on_click=submit_transcription,
+                ):
+                    pass  # The on_click handles submission
+
+    # Process input if available
+    if st.session_state.process_input:
+        with feedback_container:
+            with st.spinner("Processing your request..."):
+                result = st.session_state.app.invoke(
+                    {"input": st.session_state.process_input}
+                )
+
+                # Check if we have weather data in session state
+                if "weather_data" in st.session_state:
+                    st.session_state.response = {
+                        "type": "weather",
+                        "data": st.session_state.weather_data,
+                    }
+                    del st.session_state.weather_data
+                else:
+                    st.session_state.response = {
+                        "type": "text",
+                        "data": result["output"],
+                    }
+
+                # Clear processed input and transcription
+                st.session_state.process_input = None
+                st.session_state.transcription = None
+
+    # Display response in full width container
+    if st.session_state.response:
+        st.markdown("---")  # Add a separator
+
+        # Use a container for the full-width response
+        response_container = st.container()
+        with response_container:
+            if st.session_state.response["type"] == "weather":
+                display_weather(st.session_state.response["data"])
             else:
-                st.write(result["output"])
-
-    # Reset the processed flag at the end of each run
-    st.session_state.processed_input = False
+                st.write(st.session_state.response["data"])
 
 
 if __name__ == "__main__":
