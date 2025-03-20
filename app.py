@@ -137,7 +137,7 @@ def initialize_rag():
         )
 
     with st.spinner("Loading Grid Code documents..."):
-        loader = GridCodeLoader(data_path, pages=17)
+        loader = GridCodeLoader(data_path, pages=25)
         documents = loader.load_and_split()
         logger.info(f"Loaded {len(documents)} document chunks")
 
@@ -278,33 +278,27 @@ def main():
         weather_tool = WeatherTool()
         st.session_state.app = create_agent_workflow(rag_chain, weather_tool)
 
-    # Initialize session state variables - keep only what's necessary
-    if "transcription" not in st.session_state:
-        st.session_state.transcription = None  # Store the current transcription
-
-    # Store response in session state
+    # Initialize session states if not present
     if "response" not in st.session_state:
         st.session_state.response = None
 
-    # Store input to be processed
-    if "process_input" not in st.session_state:
-        st.session_state.process_input = None
+    # Initialize ALL state variables in a single place for clarity
+    for key in [
+        "transcription",
+        "process_input",
+        "audio_recorded",
+        "audio_bytes",
+        "clear_feedback",
+    ]:
+        if key not in st.session_state:
+            st.session_state[key] = None
 
-    # Function to submit the input
-    def submit_text_input():
-        if st.session_state.typed_input:
-            st.session_state.process_input = st.session_state.typed_input
-
-    # Function to submit transcription
-    def submit_transcription():
-        st.session_state.process_input = st.session_state.transcription
-
-    # Create input area - a container for consistent spacing
+    # Create input area
     input_container = st.container()
     with input_container:
         st.write("Type your question:")
 
-        # Create 3 columns: input field, send button, and mic button
+        # Create columns for input field, send button, and mic button
         col1, col2, col3 = st.columns([4, 1, 1])
 
         with col1:
@@ -313,29 +307,36 @@ def main():
                 "",
                 key="typed_input",
                 label_visibility="collapsed",
-                on_change=submit_text_input,
             )
 
         with col2:
             # Send button for text input
-            if st.button("Send"):
-                submit_text_input()
+            send_pressed = st.button("Send")
 
         with col3:
-            # Audio recorder inline with input - use default icon
-            audio_bytes = audio_recorder(text="", icon_size="2x")
+            # Audio recorder inline with input
+            new_audio_bytes = audio_recorder(text="", icon_size="2x")
 
-    # Full width container for spinner and transcription
-    feedback_container = st.container()
+            # If new audio is recorded, immediately reset clear_feedback flag
+            # This ensures transcription will be shown right away
+            if new_audio_bytes:
+                st.session_state.clear_feedback = False
 
-    # Process audio if recorded
-    if audio_bytes:
-        with feedback_container:
-            st.audio(audio_bytes, format="audio/wav")
+    # Full width container for feedback (transcription, spinner, etc.)
+    feedback_container = st.empty()  # Use st.empty() for easy clearing
+
+    # Handle new audio recording - always process if there's new audio
+    if new_audio_bytes:
+        # Store audio for processing
+        st.session_state.audio_bytes = new_audio_bytes
+        st.session_state.audio_recorded = True
+
+        with feedback_container.container():
+            st.audio(new_audio_bytes, format="audio/wav")
 
             # Save audio to a temporary file
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
-                tmp_file.write(audio_bytes)
+                tmp_file.write(new_audio_bytes)
                 tmp_path = tmp_file.name
 
             # Transcribe using Whisper API
@@ -349,30 +350,62 @@ def main():
 
                     # Store the transcribed text
                     transcribed_text = transcript.text
-                    if transcribed_text.strip():  # Only store if not empty
+                    if transcribed_text.strip():
                         st.session_state.transcription = transcribed_text
             except Exception as e:
                 st.error(f"Error transcribing audio: {e}")
+    else:
+        # No new audio this run
+        st.session_state.audio_recorded = False
 
-    # Show transcription info box and button if we have a transcription
-    if st.session_state.transcription:
-        with feedback_container:
+    # Only show transcription info if not marked for clearing AND we have a transcription
+    if not st.session_state.clear_feedback and st.session_state.transcription:
+        with feedback_container.container():
             st.info(f"Transcribed: {st.session_state.transcription}")
 
             # Center the button
             col1, col2, col3 = st.columns([1.5, 2, 1.5])
             with col2:
-                # Create a button to use the transcription
-                if st.button(
-                    "Use this transcription",
-                    key="use_transcript_btn",
-                    on_click=submit_transcription,
-                ):
-                    pass  # The on_click handles submission
+                use_transcription = st.button(
+                    "Use this transcription", key="use_transcript_btn"
+                )
+    else:
+        use_transcription = False
+        # If we were clearing feedback but now we don't have new audio,
+        # reset the clear flag for next time
+        if st.session_state.clear_feedback and not new_audio_bytes:
+            st.session_state.clear_feedback = False
+
+    # Determine if we need to process input
+    process_text = send_pressed and user_input
+    process_transcription = use_transcription and st.session_state.transcription
+
+    # Clear the feedback container if Send is clicked with text input
+    if send_pressed and user_input:
+        feedback_container.empty()
+        st.session_state.clear_feedback = True
+
+    # Reset process_input at the start of each interaction
+    st.session_state.process_input = None
+
+    # Set the input to process based on what was submitted
+    if process_text:
+        st.session_state.process_input = user_input
+        # Clear transcription when sending text input
+        st.session_state.transcription = None
+    elif process_transcription:
+        st.session_state.process_input = st.session_state.transcription
+        # Clear transcription after using it
+        st.session_state.transcription = None
+        # Set flag to clear feedback container on next run
+        st.session_state.clear_feedback = True
+        # Clear the container immediately
+        feedback_container.empty()
 
     # Process input if available
     if st.session_state.process_input:
-        with feedback_container:
+        processing_container = st.container()
+        with processing_container:
             with st.spinner("Processing your request..."):
                 result = st.session_state.app.invoke(
                     {"input": st.session_state.process_input}
@@ -391,9 +424,8 @@ def main():
                         "data": result["output"],
                     }
 
-                # Clear processed input and transcription
+                # Clear input after processing
                 st.session_state.process_input = None
-                st.session_state.transcription = None
 
     # Display response in full width container
     if st.session_state.response:
