@@ -270,7 +270,7 @@ def display_weather(weather_data):
 
 def main():
     image = Image.open("app/src/data/logo.png")
-    st.image(image, use_column_width=True)
+    st.image(image, use_container_width=True)
 
     # Initialize if not in session state
     if "app" not in st.session_state:
